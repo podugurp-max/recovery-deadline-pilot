@@ -185,7 +185,18 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
 
       {/* Reviewer */}
       <Section icon={<ShieldCheck className="h-4 w-4" />} title="Reviewer check">
-        <p className="text-sm text-foreground">{plan.reviewerCheck}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            className={
+              plan.reviewerApproved
+                ? "bg-success text-success-foreground"
+                : "bg-danger text-danger-foreground"
+            }
+          >
+            {plan.reviewerApproved ? "✓ Plan approved" : "⚠ Needs revision"}
+          </Badge>
+        </div>
+        <p className="mt-3 text-sm text-foreground">{plan.reviewerCheck}</p>
       </Section>
     </div>
   );
