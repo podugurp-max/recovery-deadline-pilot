@@ -95,6 +95,13 @@ function DeadlinePilot() {
     }, 50);
   };
 
+  const loadFixture = (f: TestFixture) => {
+    setCtx(f.context);
+    // Clone assignments with fresh ids
+    setAssignments(f.assignments.map((a) => ({ ...a, id: crypto.randomUUID() })));
+    setPlan(null);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
