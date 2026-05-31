@@ -49,6 +49,7 @@ export interface RecoveryPlan {
   risks: string[];
   missingInfo: string[];
   reviewerCheck: string;
+  reviewerApproved: boolean;
   trace: AgentTrace[];
 }
 
