@@ -125,22 +125,30 @@ function DeadlinePilot() {
         data: {
           summary: tracedPlan.summary,
           feasibility: tracedPlan.feasibility,
-          requiredHours: tracedPlan.requiredHours,
+          requiredHours: tracedPlan.adjustedRequiredHours,
+          rawRequiredHours: tracedPlan.rawRequiredHours,
           availableHours: tracedPlan.availableHours,
           workloadRatio: isFinite(tracedPlan.workloadRatio)
             ? tracedPlan.workloadRatio
             : 999,
           firstNextAction: tracedPlan.firstNextAction,
           missingInfo: tracedPlan.missingInfo,
+          incompleteAssignments: tracedPlan.incompleteAssignments.map((i) => ({
+            displayName: i.displayName,
+            reasons: i.reasons,
+          })),
+          deterministicReviewer: tracedPlan.reviewerCheck,
           risks: tracedPlan.risks,
           ranking: tracedPlan.ranking.map((r) => ({
             name: r.name,
             course: r.course,
             difficulty: r.difficulty,
             progress: r.progress,
-            hoursUntilDue: r.hoursUntilDue,
+            hoursUntilDue: r.hoursUntilDue ?? -1,
+            dueLabel: r.dueLabel,
             hoursRemaining: r.hoursRemaining,
             weight: r.weight,
+            isIncomplete: r.isIncomplete,
           })),
           plan: tracedPlan.plan.map((p) => ({
             assignmentName: p.assignmentName,
