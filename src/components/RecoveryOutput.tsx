@@ -53,7 +53,7 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
         className={`rounded-2xl border p-6 shadow-sm ${
           plan.feasibility === "overloaded"
             ? "border-danger/40 bg-danger/5"
-            : plan.feasibility === "tight"
+            : plan.feasibility === "tight" || plan.feasibility === "provisional"
               ? "border-warning/40 bg-warning/5"
               : "border-success/40 bg-success/5"
         }`}
@@ -70,16 +70,26 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
           <Badge className={`${f.className} px-3 py-1 text-sm`}>{f.label}</Badge>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Metric label="Required" value={`${plan.requiredHours.toFixed(1)}h`} />
-          <Metric label="Available" value={`${plan.availableHours.toFixed(1)}h`} />
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Metric
+            label="Raw hours"
+            value={`${plan.rawRequiredHours.toFixed(1)}h`}
+            hint="Sum of stated hours remaining."
+          />
+          <Metric
+            label="Difficulty-adjusted"
+            value={`${plan.adjustedRequiredHours.toFixed(1)}h`}
+            hint="Raw × difficulty multiplier (used for feasibility only)."
+          />
+          <Metric
+            label="Available"
+            value={`${plan.availableHours.toFixed(1)}h`}
+            hint="Today + tomorrow."
+          />
           <Metric
             label="Workload ratio"
-            value={
-              isFinite(plan.workloadRatio)
-                ? plan.workloadRatio.toFixed(2)
-                : "—"
-            }
+            value={isFinite(plan.workloadRatio) ? plan.workloadRatio.toFixed(2) : "—"}
+            hint="Adjusted ÷ available."
           />
         </div>
         <div className="mt-3">
@@ -90,7 +100,7 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
             />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Thresholds: ≤0.85 manageable · 0.86–1.15 tight · ≥1.16 overloaded
+            Thresholds: ≤0.85 manageable · 0.86–1.15 tight · ≥1.16 overloaded · provisional when key info is missing
           </p>
         </div>
       </div>
