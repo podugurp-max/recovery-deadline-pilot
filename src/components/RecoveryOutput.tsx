@@ -116,18 +116,23 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
           {plan.ranking.map((r, i) => (
             <li
               key={r.id}
-              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
+              className={`flex items-start gap-3 rounded-lg border p-3 ${
+                r.isIncomplete ? "border-warning/40 bg-warning/5" : "border-border bg-card"
+              }`}
             >
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
                 {i + 1}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-foreground">{r.name}</p>
+                  <p className="font-medium text-foreground">{r.name || "(unnamed)"}</p>
                   <Badge variant="secondary">{r.course || "—"}</Badge>
                   <Badge variant="outline" className="capitalize">
                     {r.difficulty}
                   </Badge>
+                  {r.isIncomplete && (
+                    <Badge className="bg-warning text-warning-foreground">Needs clarification</Badge>
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{r.rationale}</p>
                 <div className="mt-2">
@@ -141,6 +146,30 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
           )}
         </ol>
       </Section>
+
+      {/* Incomplete tasks */}
+      {plan.incompleteAssignments.length > 0 && (
+        <Section
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title="Incomplete or invalid tasks"
+        >
+          <ul className="space-y-2">
+            {plan.incompleteAssignments.map((i) => (
+              <li
+                key={i.id}
+                className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm"
+              >
+                <p className="font-medium text-foreground">{i.displayName}</p>
+                <ul className="mt-1 list-inside list-disc text-xs text-muted-foreground">
+                  {i.reasons.map((r, j) => (
+                    <li key={j}>{r}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       {/* Recovery plan */}
       <Section icon={<ListChecks className="h-4 w-4" />} title="Recommended recovery plan">
