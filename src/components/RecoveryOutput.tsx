@@ -222,11 +222,12 @@ export function RecoveryOutput({ plan }: { plan: RecoveryPlan }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-2xl font-semibold text-foreground">{value}</p>
+      {hint && <p className="mt-0.5 text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
