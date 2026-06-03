@@ -5,10 +5,15 @@ const PlanInput = z.object({
   summary: z.string(),
   feasibility: z.string(),
   requiredHours: z.number(),
+  rawRequiredHours: z.number().optional(),
   availableHours: z.number(),
   workloadRatio: z.number(),
   firstNextAction: z.string(),
   missingInfo: z.array(z.string()),
+  incompleteAssignments: z
+    .array(z.object({ displayName: z.string(), reasons: z.array(z.string()) }))
+    .optional(),
+  deterministicReviewer: z.string().optional(),
   risks: z.array(z.string()),
   ranking: z.array(
     z.object({
@@ -17,8 +22,10 @@ const PlanInput = z.object({
       difficulty: z.string(),
       progress: z.number(),
       hoursUntilDue: z.number(),
+      dueLabel: z.string().optional(),
       hoursRemaining: z.number(),
       weight: z.number(),
+      isIncomplete: z.boolean().optional(),
     }),
   ),
   plan: z.array(
