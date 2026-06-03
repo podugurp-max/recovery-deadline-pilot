@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useServerFn } from "@tanstack/react-start";
 import { AssignmentCard } from "@/components/AssignmentCard";
 import { RecoveryOutput } from "@/components/RecoveryOutput";
 import { AgentTraceView } from "@/components/AgentTraceView";
+import { LlmReviewerOutput } from "@/components/LlmReviewerOutput";
 import {
   runRecovery,
   type Assignment,
@@ -22,6 +24,10 @@ import {
   type RecoveryPlan,
   type StudentContext,
 } from "@/lib/recovery-engine";
+import {
+  reviewPlanWithGemini,
+  type LlmReviewResponse,
+} from "@/lib/reviewer.functions";
 import {
   normalWorkloadTest,
   messyInputTest,
@@ -78,21 +84,82 @@ function DeadlinePilot() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([newAssignment()]);
   const [plan, setPlan] = useState<RecoveryPlan | null>(null);
+  const [llmReview, setLlmReview] = useState<
+    { status: "loading" } | { status: "done"; result: LlmReviewResponse } | null
+  >(null);
+
+  const reviewFn = useServerFn(reviewPlanWithGemini);
 
   const update = <K extends keyof StudentContext>(k: K, v: StudentContext[K]) =>
     setCtx((c) => ({ ...c, [k]: v }));
 
-  const run = () => {
+  const run = async () => {
     const ctxIso: StudentContext = {
       ...ctx,
       currentDate: new Date(ctx.currentDate + "T00:00:00").toISOString(),
     };
-    setPlan(runRecovery(ctxIso, assignments));
+    const deterministic = runRecovery(ctxIso, assignments);
+
+    // Update Reviewer trace entry to reflect live Gemini call.
+    const tracedPlan: RecoveryPlan = {
+      ...deterministic,
+      trace: deterministic.trace.map((t) =>
+        t.agent === "Reviewer Agent"
+          ? {
+              ...t,
+              output: "Called a live Gemini model to audit the deterministic recovery plan.",
+            }
+          : t,
+      ),
+    };
+    setPlan(tracedPlan);
+    setLlmReview({ status: "loading" });
     setTimeout(() => {
       document
         .getElementById("recovery-output")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
+
+    try {
+      const result = await reviewFn({
+        data: {
+          summary: tracedPlan.summary,
+          feasibility: tracedPlan.feasibility,
+          requiredHours: tracedPlan.requiredHours,
+          availableHours: tracedPlan.availableHours,
+          workloadRatio: isFinite(tracedPlan.workloadRatio)
+            ? tracedPlan.workloadRatio
+            : 999,
+          firstNextAction: tracedPlan.firstNextAction,
+          missingInfo: tracedPlan.missingInfo,
+          risks: tracedPlan.risks,
+          ranking: tracedPlan.ranking.map((r) => ({
+            name: r.name,
+            course: r.course,
+            difficulty: r.difficulty,
+            progress: r.progress,
+            hoursUntilDue: r.hoursUntilDue,
+            hoursRemaining: r.hoursRemaining,
+            weight: r.weight,
+          })),
+          plan: tracedPlan.plan.map((p) => ({
+            assignmentName: p.assignmentName,
+            block: p.block,
+            hoursAllocated: p.hoursAllocated,
+            note: p.note,
+          })),
+        },
+      });
+      setLlmReview({ status: "done", result });
+    } catch (e) {
+      setLlmReview({
+        status: "done",
+        result: {
+          ok: false,
+          error: e instanceof Error ? e.message : "Network error calling reviewer.",
+        },
+      });
+    }
   };
 
   const loadFixture = (f: TestFixture) => {
@@ -100,6 +167,7 @@ function DeadlinePilot() {
     // Clone assignments with fresh ids
     setAssignments(f.assignments.map((a) => ({ ...a, id: crypto.randomUUID() })));
     setPlan(null);
+    setLlmReview(null);
   };
 
   return (
@@ -319,7 +387,10 @@ function DeadlinePilot() {
         {/* Output */}
         {plan && (
           <div id="recovery-output" className="grid gap-6 lg:grid-cols-[1fr_360px]">
-            <RecoveryOutput plan={plan} />
+            <div className="space-y-6">
+              <RecoveryOutput plan={plan} />
+              {llmReview && <LlmReviewerOutput state={llmReview} />}
+            </div>
             <AgentTraceView trace={plan.trace} />
           </div>
         )}
