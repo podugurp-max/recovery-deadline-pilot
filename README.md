@@ -57,6 +57,19 @@ The current draft includes:
 - Visible agent workflow trace
 - Evaluation demo buttons for three synthetic test cases
 - Markdown documentation for the agentic system design
+- Real Gemini-powered Reviewer Agent
+- LLM Reviewer Agent Output section
+- Secure server-side Gemini API call
+- Raw hours vs difficulty-adjusted hours display
+- Needs Clarification status for incomplete inputs
+
+## Final LLM Integration Update
+
+Based on draft feedback, DeadlinePilot now includes one real LLM-powered agent step. The deterministic workflow remains as a scaffold for task parsing, priority scoring, feasibility analysis, schedule building, and risk detection. The Reviewer Agent now calls a real Gemini model through a secure server-side API function.
+
+The Gemini Reviewer Agent receives the deterministic recovery plan and audits it for realism, missing information, false reassurance, overload handling, and whether the plan should be approved or marked as needing revision.
+
+This update addresses the main draft feedback: the previous version simulated all six agents deterministically, while the final version includes a real model call in the Reviewer Agent.
 
 ## Core Guardrail
 
@@ -75,9 +88,11 @@ The draft includes three synthetic evaluation scenarios:
 3. **Overload Failure Test**  
    Expected result: overloaded status, risk warnings, and a triage plan instead of false reassurance.
 
-## Known Limitation
+## Final Improvements After Draft Feedback
 
-The current draft is not final. The messy input test exposed a useful failure mode: the system detects missing information, but it can still label the situation too confidently. For example, missing due dates need clearer handling. This is documented in the evaluation and build log as the next revision.
+The draft version had two main issues: all six agents were deterministic, and the messy input test exposed weak handling of incomplete assignment data.
+
+For the final version, the Reviewer Agent now calls Gemini for a live model-based review. The deterministic scaffold was also refined based on Gemini Reviewer feedback. The final version now separates raw estimated hours from difficulty-adjusted hours, uses raw hours for schedule allocation, avoids over-scheduling tasks, flags incomplete inputs as Needs Clarification, and preserves overload triage behavior.
 
 ## Tech Stack
 
