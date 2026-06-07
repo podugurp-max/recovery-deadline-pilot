@@ -88,3 +88,42 @@ Planned improvements:
 - Improve priority scoring explanation.
 - Add clearer raw hours vs difficulty-adjusted hours display.
 - Consider connecting the agent workflow to a live LLM API after deterministic guardrails are stable.
+
+## V5: Gemini Reviewer Agent Integration
+
+### Goal
+
+Address draft feedback that the six agents were deterministic functions and no LLM was called.
+
+### Change
+
+Kept the deterministic scaffold for task parsing, priority ranking, feasibility scoring, scheduling, and risk detection. Upgraded the Reviewer Agent so it calls a real Gemini model through a secure server-side API function.
+
+### Result
+
+DeadlinePilot now includes a real Gemini-powered Reviewer Agent. The Reviewer Agent audits the deterministic recovery plan for realism, missing information, false reassurance, overload handling, and whether the output should be approved or marked as needing revision.
+
+### Evidence
+
+In the final evaluation scenarios, the app displayed Gemini Reviewer output and the agent workflow trace stated that the Reviewer Agent called a live Gemini model.
+
+## V6: Deterministic Scaffold Refinement
+
+### Goal
+
+Improve the deterministic scaffold based on Gemini Reviewer feedback while preserving the real Gemini Reviewer Agent integration.
+
+### Changes
+
+- Clarified raw estimated hours vs difficulty-adjusted hours.
+- Changed “weighted work” wording to “difficulty-adjusted work.”
+- Updated schedule blocks to use raw hours remaining instead of adjusted hours.
+- Removed confusing missing-date behavior such as “9999.0h.”
+- Added Needs Clarification status for incomplete or invalid input.
+- Added incomplete/invalid task handling.
+- Added risk warning for 0 hours remaining with 0% progress.
+- Improved priority explanations when grade weight outweighs earlier due date.
+
+### Result
+
+The system now handles the three evaluation scenarios more reliably. Normal workload scheduling no longer over-allocates time, messy input is classified as Needs Clarification, and overload still produces triage rather than false reassurance. The Gemini Reviewer Agent remains active and audits the deterministic output.
