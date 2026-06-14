@@ -1,127 +1,205 @@
-# DeadlinePilot
+# RecoveryPilot: AI Academic Recovery Agent
 
-DeadlinePilot is an agentic academic deadline recovery assistant for overwhelmed students. It helps students triage competing assignments, compare required work against available time, identify overload, and create a realistic recovery plan.
+RecoveryPilot is an AI-powered academic recovery planner for students who are overwhelmed by deadlines, limited time, low energy, and competing priorities.
 
-## Live App
+Instead of only sorting assignments by due date, RecoveryPilot analyzes the student’s workload and asks an LLM-powered recovery agent to choose the most realistic strategy: a normal schedule, a recovery plan, a triage plan, or an overload warning.
 
-https://deadline-pilot.lovable.app
+## Deployed App
 
-## Final Project Repository
+https://recovery-deadline-pilot.lovable.app
 
-https://github.com/podugurp-max/deadline-pilot
+## Overview
 
-## Project 2 Focus
+Students often have several assignments due at once, but a simple to-do list does not show whether the workload is actually realistic. RecoveryPilot helps students understand:
 
-Project 2 focuses on agentic systems: AI applications that can take actions, use tools, and operate with greater autonomy. DeadlinePilot demonstrates this through an orchestrator-style workflow with specialized agents:
+* how much work they have left
+* how much time they realistically have available
+* which tasks are most urgent or risky
+* whether a normal schedule is enough
+* whether they need triage, scope reduction, or outreach
 
-- Task Parser Agent
-- Priority Agent
-- Feasibility Agent
-- Schedule Builder Agent
-- Risk Agent
-- Reviewer Agent
+The app is designed to support realistic academic recovery planning instead of pretending every workload can fit into the available time.
 
-The system does not simply generate a generic schedule. It analyzes the student's workload, scores task priority, checks feasibility, flags risks, and produces a recovery plan.
+## Key Features
 
-## Problem
+* Student context input for available hours, energy level, stress level, and fixed commitments
+* Academic task tracking with due dates, estimated hours, progress, importance, difficulty, and notes
+* Custom workload analysis tool: `analyze_student_load`
+* Gemini-powered recovery agent
+* Strategy selection across four modes:
 
-Students often face multiple deadlines at the same time while balancing work, class, personal responsibilities, low energy, and stress. Generic planning tools often assume everything can be completed if time blocks are packed tightly. This can create unrealistic plans and false reassurance.
+  * `SCHEDULE_MODE`
+  * `RECOVERY_MODE`
+  * `TRIAGE_MODE`
+  * `WARNING_MODE`
+* Deterministic baseline comparison using earliest due date
+* Built-in demo scenarios for normal, messy, and overloaded workloads
+* Visible tool trace showing how the workload analysis was passed into the AI agent
 
-## Solution
+## How It Works
 
-DeadlinePilot creates a recovery plan by using a structured agentic workflow:
+RecoveryPilot follows a structured agent workflow:
 
-1. The user enters available time, energy level, stress level, fixed commitments, and assignments.
-2. The Task Parser Agent normalizes assignment data.
-3. The Priority Agent ranks tasks by urgency, importance, progress, and difficulty.
-4. The Feasibility Agent compares required work against available time.
-5. The Schedule Builder Agent creates a plan.
-6. The Risk Agent flags overload, low energy, missing information, or deadline risk.
-7. The Reviewer Agent checks whether the plan is realistic before approval.
+1. The student enters academic workload and personal context.
+2. The app runs a custom MCP-style workload analysis tool called `analyze_student_load`.
+3. The tool returns structured workload data such as total work hours, available time, capacity ratio, high-risk task count, risk flags, and recommended mode.
+4. The structured tool output is passed into the Gemini recovery agent.
+5. The LLM chooses a final recovery strategy and explains its reasoning.
+6. The app compares the LLM’s decision against a simple deterministic due-date baseline.
 
-## Current Working Draft
+## Custom Workload Tool
 
-The current draft includes:
+The custom tool is called:
 
-- Lovable-generated React app code
-- Student context form
-- Assignment input section
-- Add Assignment button
-- Run Recovery Plan button
-- Deterministic feasibility scoring
-- Priority ranking
-- Recommended recovery plan
-- Risk warnings
-- Missing information section
-- Reviewer check
-- Visible agent workflow trace
-- Evaluation demo buttons for three synthetic test cases
-- Markdown documentation for the agentic system design
-- Real Gemini-powered Reviewer Agent
-- LLM Reviewer Agent Output section
-- Secure server-side Gemini API call
-- Raw hours vs difficulty-adjusted hours display
-- Needs Clarification status for incomplete inputs
+```text
+analyze_student_load
+```
 
-## Final LLM Integration Update
+It analyzes:
 
-Based on draft feedback, DeadlinePilot now includes one real LLM-powered agent step. The deterministic workflow remains as a scaffold for task parsing, priority scoring, feasibility analysis, schedule building, and risk detection. The Reviewer Agent now calls a real Gemini model through a secure server-side API function.
+* estimated hours remaining
+* available hours
+* task due dates
+* progress percentage
+* task importance
+* task difficulty
+* energy level
+* stress level
+* fixed commitments
 
-The Gemini Reviewer Agent receives the deterministic recovery plan and audits it for realism, missing information, false reassurance, overload handling, and whether the plan should be approved or marked as needing revision.
+The tool returns structured workload information that is used by the recovery agent.
 
-This update addresses the main draft feedback: the previous version simulated all six agents deterministically, while the final version includes a real model call in the Reviewer Agent.
+Tool logic:
 
-## Core Guardrail
+```text
+src/mcp/analyzeStudentLoad.ts
+```
 
-The main guardrail is that DeadlinePilot should not provide false reassurance. If the required work exceeds available time, the system should classify the situation as overloaded and create a triage plan instead of pretending everything can be completed.
+Tool schema:
 
-## Evaluation Cases
+```text
+src/mcp/mcpToolDefinitions.ts
+```
 
-The draft includes three synthetic evaluation scenarios:
+Recovery agent wiring:
 
-1. **Normal Workload Test**  
-   Expected result: manageable status and reviewer approval.
+```text
+src/agents/recoveryAgent.ts
+```
 
-2. **Messy Input Test**  
-   Expected result: missing information is flagged and reviewer asks for revision.
+## LLM Strategy Decision
 
-3. **Overload Failure Test**  
-   Expected result: overloaded status, risk warnings, and a triage plan instead of false reassurance.
+The Gemini-powered recovery agent chooses one of four modes:
 
-## Final Improvements After Draft Feedback
+### `SCHEDULE_MODE`
 
-The draft version had two main issues: all six agents were deterministic, and the messy input test exposed weak handling of incomplete assignment data.
+The workload appears manageable, so the student receives a normal schedule.
 
-For the final version, the Reviewer Agent now calls Gemini for a live model-based review. The deterministic scaffold was also refined based on Gemini Reviewer feedback. The final version now separates raw estimated hours from difficulty-adjusted hours, uses raw hours for schedule allocation, avoids over-scheduling tasks, flags incomplete inputs as Needs Clarification, and preserves overload triage behavior.
+### `RECOVERY_MODE`
+
+The workload is tight or messy, but still recoverable with focused prioritization.
+
+### `TRIAGE_MODE`
+
+The student cannot complete everything normally, so the agent prioritizes the highest-impact work.
+
+### `WARNING_MODE`
+
+The workload is unrealistic, and the student should consider scope reduction, partial completion, or contacting the instructor.
+
+## Deterministic Baseline Comparison
+
+RecoveryPilot includes a simple baseline that prioritizes the task with the earliest due date.
+
+This baseline is intentionally limited because it ignores:
+
+* task importance
+* progress
+* difficulty
+* stress
+* energy
+* blockers
+* dependency risks
+
+The app compares the LLM’s decision with this baseline to show how the AI agent goes beyond simple due-date sorting.
+
+## Evaluation Scenarios
+
+RecoveryPilot includes three built-in test scenarios:
+
+### Normal Workload
+
+A manageable workload where the student has enough time to complete the tasks.
+
+Expected behavior:
+
+```text
+SCHEDULE_MODE
+```
+
+### Messy Student Input
+
+A realistic scenario with vague task notes, blockers, low progress, and tight timing.
+
+Expected behavior:
+
+```text
+RECOVERY_MODE
+```
+
+### Overload Failure Case
+
+A difficult scenario where work greatly exceeds available time and the student has low energy and high stress.
+
+Expected behavior:
+
+```text
+TRIAGE_MODE or WARNING_MODE
+```
+
+This case tests whether the agent avoids creating an unrealistic schedule when the workload is not actually possible.
+
+## Project Context
+
+RecoveryPilot was built as an AI 502 Project 3 capstone. It builds on my previous academic planning project, DeadlinePilot, but changes the architecture from a mostly deterministic planner with an LLM reviewer into a tool-assisted AI recovery agent.
+
+The main architectural improvement is that the LLM now receives structured workload analysis from a custom tool and makes the final strategy decision.
 
 ## Tech Stack
 
-- Front end: Lovable-generated React app
-- Language: TypeScript
-- Styling: CSS / Lovable-generated UI
-- Logic: Deterministic JavaScript/TypeScript workflow simulation
-- Documentation: Markdown
-- Version control: GitHub
-- Deployment: Lovable
+* React
+* TypeScript
+* Lovable
+* Gemini API
+* Custom MCP-style tool schema
+* Deterministic baseline comparison
 
-## Repository Structure
+## Running Locally
 
-```text
-deadline-pilot/
-├── .lovable/
-├── public/
-├── src/
-├── .agents/
-├── .skills/
-├── prompts/
-├── test-cases/
-├── README.md
-├── architecture.md
-├── build-log.md
-├── development-checklist.md
-├── domain-primer.md
-├── evaluation.md
-├── feedback-log.md
-├── personas.md
-├── prd.md
-└── synthetic-data-strategy.md
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+## Environment Variables
+
+For local development, create a `.env` file using `.env.example`.
+
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+The deployed Lovable version uses the API key configured in Lovable’s environment/secrets.
+
+## Current Status
+
+This is a working Project 3 draft. The deployed version demonstrates the custom workload tool, Gemini-powered strategy selection, deterministic baseline comparison, and evaluation demos.
+
+Planned final improvements include stronger product polish, clearer raw versus adjusted workload calculations, improved risk flag detection, stronger scheduling guardrails, and cleaner local time formatting.
