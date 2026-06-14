@@ -1,118 +1,147 @@
-# Evaluation Plan
+Evaluation
 
-## Evaluation Goal
+RecoveryPilot includes three built-in evaluation demos. These demos are designed to test whether the app can handle manageable, messy, and overloaded academic situations.
 
-The goal of evaluation is to test whether DeadlinePilot behaves like an agentic recovery planner instead of a generic schedule generator.
+Evaluation Case 1: Normal Workload Demo
+Purpose
 
-The system should not only succeed on easy inputs. It should also expose and document failure modes, especially when the student's workload is incomplete, messy, or impossible.
+Test whether the system creates a normal schedule when the student has enough time.
 
-## Evaluation Metrics
+Input Summary
 
-| Metric | Description | Pass Condition |
-|---|---|---|
-| Task Parsing | Did the system identify assignments and key fields? | Assignments are visible in the workflow trace |
-| Priority Quality | Did the system rank tasks using urgency and importance? | Highest-risk tasks appear near the top |
-| Feasibility Accuracy | Did the system compare required hours against available hours? | Correct manageable/tight/overloaded status |
-| Risk Detection | Did the system flag overload, low energy, high stress, or missing info? | Risks are shown when present |
-| Guardrail Behavior | Did the system avoid false reassurance? | Overloaded cases produce triage, not fake completion |
-| Reviewer Behavior | Did the Reviewer Agent approve or request revision? | Reviewer output appears in final result |
-| Agent Trace | Is the workflow visible? | Trace shows each specialized agent |
+The student has a manageable number of tasks and enough available hours to complete them.
 
-## Test Case 1: Normal Workload
+Expected Behavior
 
-### Purpose
+The LLM should choose:
 
-Test whether the system handles a manageable workload correctly.
+SCHEDULE_MODE
+What This Tests
+basic workload analysis
+successful tool output
+normal planning behavior
+LLM strategy selection
+Success Criteria
 
-### Expected Behavior
+The app should:
 
-- Feasibility status should be manageable.
-- Recovery plan should fit available time.
-- Reviewer Agent should approve.
-- No major risk warnings should appear.
+run the custom tool
+display the tool trace
+choose SCHEDULE_MODE
+generate a realistic schedule
+compare the LLM result to the earliest-due-date baseline
+Evaluation Case 2: Messy Student Input Demo
+Purpose
 
-### Draft Result
+Test whether the system can handle vague student input, partial progress, blockers, and tight timing.
 
-Status: Passed.
+Input Summary
 
-The system classified the workload as manageable, created a recovery plan, and displayed the agent workflow trace.
+The student has several tasks with unclear notes, low progress, and possible external dependencies.
 
-## Test Case 2: Messy Input
+Example issues:
 
-### Purpose
+unclear thesis
+teammates not responding
+forgotten lab details
+multiple tasks due soon
+Expected Behavior
 
-Test whether the system can handle vague or incomplete assignment data.
+The LLM should choose:
 
-### Expected Behavior
+RECOVERY_MODE
+Actual Draft Behavior
 
-- Missing information should be flagged.
-- The system should avoid inventing missing details.
-- Reviewer Agent should mark the plan as needing revision.
-- The system should not be overly confident when required fields are missing.
+In testing, the LLM selected:
 
-### Draft Result
+RECOVERY_MODE
 
-Status: Partial pass; known limitation.
+It recognized that the workload was technically close to available time but had almost no buffer. It also identified that the group slides had teammate dependency risk and that the essay had low progress, high difficulty, and unclear thesis risk.
 
-The system detected missing information and the Reviewer Agent marked the output as needing revision. However, the current draft still treats the situation too confidently in some places. For example, missing due dates need clearer handling, and incomplete tasks should trigger a stronger provisional or needs-clarification status.
+What This Tests
+realistic messy input
+qualitative blockers
+task prioritization beyond due date
+LLM reasoning using tool output
+comparison against a simple due-date baseline
+Success Criteria
 
-This failure is useful because it shows where the next iteration should improve.
+The app should:
 
-## Test Case 3: Overload Failure Case
+identify the tight workload
+produce a focused recovery plan
+prioritize urgent and high-risk work
+explain how the LLM strategy differs from the deterministic baseline
+Draft Observation
 
-### Purpose
+The LLM handled the messy input test well by selecting Recovery Mode and explaining the qualitative task risks. However, the custom tool’s riskFlags array should be strengthened before final submission because some obvious risks were not always reflected in the tool output.
 
-Test the most important guardrail: whether the system refuses false reassurance when the workload is impossible.
+Evaluation Case 3: Overload Failure Demo
+Purpose
 
-### Expected Behavior
+Test whether the system recognizes when a student has more work than available time.
 
-- Feasibility status should be overloaded.
-- The system should not claim everything can be finished.
-- The system should create a triage plan.
-- Risk warnings should appear.
-- Reviewer Agent should approve only if false reassurance is avoided.
+Input Summary
 
-### Draft Result
+The student has multiple high-importance, hard tasks due soon, low energy, high stress, and limited available hours.
 
-Status: Passed.
+Example tested workload:
 
-The system correctly classified the workload as overloaded, warned that completing everything was not realistic, and created a triage plan. This directly supports the Project 2 goal of testing agentic behavior and avoiding easy-only evaluation cases.
+18.95 hours of work
+5 available hours
+low energy
+high stress
+multiple high-risk tasks
+Expected Behavior
 
-## Known Limitation
+The LLM should choose:
 
-The current draft uses deterministic JavaScript logic instead of live LLM calls. This is intentional for the working draft because it allows the workflow, scoring logic, and guardrails to be tested clearly.
+TRIAGE_MODE or WARNING_MODE
+Actual Draft Behavior
 
-The biggest known issue is messy-input handling. Future revisions should:
+In testing, the LLM selected:
 
-- replace awkward missing-date displays with “Due date missing”
-- add a “Needs Clarification” status
-- treat incomplete tasks as provisional
-- strengthen reviewer rejection logic for missing information
+WARNING_MODE
 
-## Final Evaluation Update: Gemini Reviewer Agent
+The model recognized that the workload was unrealistic and recommended immediate outreach to professors, partial completion, prioritizing urgent work, and reassessing lower-priority work.
 
-After draft feedback, I added a real Gemini-powered Reviewer Agent. The deterministic workflow still creates the initial recovery plan, but the Reviewer Agent now performs a live model-based audit of the plan.
+What This Tests
+overload detection
+failure case handling
+avoidance of unrealistic scheduling
+scope reduction recommendations
+outreach/extension recommendations
+Success Criteria
 
-### Final Retest Results
+The app should:
 
-#### Test 1: Normal Workload
+clearly show that workload exceeds available time
+avoid pretending everything can be completed
+recommend triage, partial completion, or contacting professors
+display a warning instead of a normal schedule
+compare the LLM result to the deterministic baseline
+Draft Observation
 
-Status: Passed.
+The overload demo successfully triggered Warning Mode. This is a successful Project 3 failure/edge case because it shows that the agent does not simply schedule every task when the workload is impossible.
 
-The final version clearly separates raw estimated hours from difficulty-adjusted hours. The system calculated 5.5 raw hours, 6.5 difficulty-adjusted hours, and 9.0 available hours. The schedule now uses raw hours for time allocation, so it no longer over-schedules tasks beyond the stated hours remaining.
+Overall Evaluation Notes
 
-#### Test 2: Messy Input
+The current draft demonstrates meaningful improvement over Project 2 because the system now includes:
 
-Status: Passed.
+a custom MCP-style tool
+tool output displayed in the UI
+tool output passed to an LLM
+LLM strategy selection
+deterministic baseline comparison
+overload/failure evaluation
+Final Submission Improvements Planned
 
-The final version improved messy-input handling. The system classified the scenario as Needs Clarification instead of Manageable, flagged 2 incomplete assignments, removed the previous “9999.0h” due date issue, and identified missing due date, missing assignment name, and likely missing effort estimate issues. The Gemini Reviewer Agent returned Needs Revision and explained why the plan was provisional.
+Before the final submission, the following improvements should be made:
 
-#### Test 3: Overload Failure Case
-
-Status: Passed.
-
-The final version correctly classified the workload as Overloaded. It showed 22.0 raw hours, 34.2 difficulty-adjusted hours, and only 5.0 available hours. The system created a triage plan instead of claiming everything could be completed. The Gemini Reviewer Agent approved the plan because it avoided false reassurance and clearly acknowledged the overload.
-
-### Result Summary
-
-The final version addresses the main Project 2 feedback because the Reviewer Agent now calls a real Gemini model. The deterministic agents serve as the scaffold for consistent calculations, while Gemini provides model-based review of realism, missing information, and false reassurance.
+move class/project evidence out of the main product UI
+improve student-facing product polish
+clarify raw versus adjusted workload calculations
+strengthen MCP risk flag logic
+add guardrails to prevent planned hours from exceeding available hours
+improve local time formatting
+complete final screenshots and evaluation notes
