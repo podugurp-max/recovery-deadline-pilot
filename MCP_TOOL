@@ -1,0 +1,107 @@
+Custom MCP-Style Tool: analyze_student_load
+Tool Name
+
+analyze_student_load
+
+Purpose
+
+analyze_student_load is a custom MCP-style workload analysis tool created for RecoveryPilot.
+
+Its purpose is to analyze a student’s academic workload and return structured facts that the LLM can use to choose a recovery strategy.
+
+Tool Location
+
+Tool logic:
+
+src/mcp/analyzeStudentLoad.ts
+
+Tool schema:
+
+src/mcp/mcpToolDefinitions.ts
+
+LLM wiring:
+
+src/agents/recoveryAgent.ts
+Tool Description
+
+The tool analyzes:
+
+academic task list
+estimated hours remaining
+available hours
+due dates
+progress percentage
+importance
+difficulty
+energy level
+stress level
+fixed commitments
+
+It returns structured workload information for the recovery agent.
+
+Example Input
+{
+  "studentContext": {
+    "currentDate": "2026-06-14",
+    "availableHoursToday": 2,
+    "availableHoursTomorrow": 3,
+    "energyLevel": "low",
+    "stressLevel": "high",
+    "fixedCommitments": "Work shift 1–8pm today, class 9–12 tomorrow"
+  },
+  "tasks": [
+    {
+      "taskName": "Term paper — final draft",
+      "course": "HIST 305",
+      "dueDate": "2026-06-15T12:59:00",
+      "estimatedHoursRemaining": 8,
+      "progressPercent": 15,
+      "importance": "high",
+      "difficulty": "hard",
+      "notes": "Thesis still unclear, need sources."
+    },
+    {
+      "taskName": "Programming assignment 4",
+      "course": "CS 200",
+      "dueDate": "2026-06-15T04:59:00",
+      "estimatedHoursRemaining": 5,
+      "progressPercent": 25,
+      "importance": "high",
+      "difficulty": "hard",
+      "notes": "Recursion edge cases failing."
+    }
+  ]
+}
+Example Output
+{
+  "toolName": "analyze_student_load",
+  "totalRawHours": 13,
+  "availableHours": 5,
+  "capacityRatio": 2.6,
+  "highRiskTaskCount": 2,
+  "soonestDueDate": "2026-06-15T04:59:00.000Z",
+  "riskFlags": [
+    "Workload is 2.6× available capacity.",
+    "Student energy is low.",
+    "Student stress is high.",
+    "2 high-risk tasks competing for attention."
+  ],
+  "recommendedMode": "WARNING_MODE",
+  "explanation": "Computed 13h of remaining work against 5h available. 2 tasks were flagged as high risk. Tool's recommended mode is WARNING_MODE."
+}
+How the Tool Is Exposed to the Model
+
+The tool schema and the tool output are included in the recovery-agent prompt. The LLM receives the structured output and uses it to choose one of four modes:
+
+SCHEDULE_MODE
+RECOVERY_MODE
+TRIAGE_MODE
+WARNING_MODE
+
+The tool does not directly produce the final plan. It provides structured context so the LLM can make a more informed decision.
+
+MCP Honesty Note
+
+This draft uses a custom MCP-style tool implemented inside the project codebase. It defines the tool schema, exposes the structured output to the model, and displays the tool trace in the UI.
+
+It is not currently a separate external MCP server.
