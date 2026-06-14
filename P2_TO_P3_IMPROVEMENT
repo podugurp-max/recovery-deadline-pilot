@@ -1,0 +1,72 @@
+Project 2 to Project 3 Improvement
+Overview
+
+Project 3, RecoveryPilot, builds on the academic planning direction from Project 2, DeadlinePilot, but changes the architecture to better meet the course goals around MCP tools, agentic behavior, autonomous decision-making, evaluation, and production quality.
+
+The main Project 2 feedback was that the system worked, but most of the named agents were deterministic TypeScript functions. The LLM was added as a reviewer, but the core planning decision was still largely hardcoded.
+
+RecoveryPilot addresses this by making the LLM responsible for the final recovery strategy decision after receiving structured output from a custom MCP-style tool.
+
+Comparison Table
+Area	Project 2: DeadlinePilot	Project 3: RecoveryPilot Improvement
+AI role	LLM acted mainly as a reviewer after deterministic planning logic	LLM chooses the final recovery strategy mode
+Agent architecture	Multiple named agents, mostly deterministic	One clearer recovery agent powered by tool output and LLM decision-making
+Tool use	No custom MCP tool	Custom MCP-style tool analyze_student_load created and exposed to the model
+Autonomous decision-making	The app mostly calculated the plan through fixed logic	The LLM chooses SCHEDULE_MODE, RECOVERY_MODE, TRIAGE_MODE, or WARNING_MODE
+Evaluation	Demo cases mostly showed successful planning	Evaluation includes normal, messy, and overload/failure cases
+Real-world impact	Helped organize assignments	Helps overwhelmed students recognize whether they need a schedule, recovery plan, triage, or warning
+GitHub verification	LLM wiring was harder to verify from GitHub alone	Tool files, schema, recovery agent, and documentation are explicitly included
+Baseline comparison	Limited comparison to deterministic behavior	App displays earliest-due-date baseline next to the LLM decision
+Production quality	Good class demo UI	Draft moves toward a more realistic student recovery assistant
+Main Improvement
+
+The biggest improvement is that Project 3 makes the AI decision visible and testable.
+
+In Project 2, a grader could reasonably say the system was mostly deterministic. In Project 3, the app shows:
+
+the custom tool output
+the LLM strategy decision
+the model’s reasoning
+the deterministic baseline comparison
+
+This makes the agentic behavior clearer.
+
+Why This Is More Agentic
+
+RecoveryPilot does not simply sort tasks by due date. It gives the model structured workload information and asks it to select a strategy.
+
+The model can decide that the student needs:
+
+a normal schedule
+a recovery plan
+a triage plan
+an overload warning
+
+This is more agentic than the previous version because the LLM is responsible for selecting the planning mode.
+
+Draft Limitations
+
+This draft still needs final polish before the final submission. The current app includes a lot of class/project evidence directly in the UI. That is helpful for grading, but the final version should make the main interface more student-facing and move technical evidence into a separate section.
+
+The final version should also improve:
+
+workload calculation clarity
+risk flag detection
+scheduling guardrails
+date/time formatting
+product polish
+Requirements Coverage
+
+The Project 3 draft currently includes:
+
+deployed Lovable URL
+public or shareable GitHub repository
+custom MCP-style tool created for the project
+tool definition visible in the codebase
+tool output displayed in the UI
+tool output passed into the LLM prompt
+LLM-selected strategy mode
+deterministic baseline comparison
+normal workload evaluation case
+messy input evaluation case
+overload/failure evaluation case
