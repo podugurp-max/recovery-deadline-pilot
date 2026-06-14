@@ -1,100 +1,115 @@
-# Architecture
+Architecture
+Overview
 
-## System Overview
+RecoveryPilot is an academic recovery assistant that helps overwhelmed students decide whether they need a normal schedule, a focused recovery plan, a triage plan, or an overload warning.
 
-DeadlinePilot uses an agentic workflow architecture. The system is organized around an orchestrator-style process where the user's input is routed through several specialized agents. Each agent has a narrow responsibility, and the final Reviewer Agent checks the combined output before the user sees the plan.
+The app uses a custom MCP-style tool called analyze_student_load and a Gemini-powered recovery agent.
 
-## Final Architecture Update: Gemini Reviewer Agent
+High-Level Flow
+The student enters context and academic tasks.
+The app calls the custom MCP-style tool: analyze_student_load.
+The tool returns structured workload analysis.
+The app builds a recovery-agent prompt containing:
+student context
+task list
+custom tool definition
+custom tool output
+deterministic baseline result
+Gemini chooses one recovery strategy mode.
+The app displays:
+autonomous strategy decision
+model reasoning
+recovery plan
+risk warnings
+what to do first
+MCP tool trace
+deterministic baseline comparison
+Architecture Diagram
+Student Input
+     |
+     v
+Student Context + Academic Tasks
+     |
+     v
+Custom MCP-Style Tool
+analyze_student_load
+     |
+     v
+Structured Workload Output
+     |
+     v
+Recovery Agent Prompt
+(tool definition + tool output + baseline)
+     |
+     v
+Gemini LLM
+     |
+     v
+Strategy Decision
+SCHEDULE / RECOVERY / TRIAGE / WARNING
+     |
+     v
+UI Results
+plan + risks + baseline comparison + tool trace
+Custom Tool Role
 
-The draft version used deterministic functions for all six agents. Based on instructor feedback, the final version keeps the deterministic workflow as a reliable scaffold but upgrades the Reviewer Agent to use a real Gemini API call.
+The custom tool does not write the final plan. Its job is to analyze workload facts and provide structured context.
 
-The first five agents still produce structured outputs:
+The tool calculates:
 
-- Task Parser Agent
-- Priority Agent
-- Feasibility Agent
-- Schedule Builder Agent
-- Risk Agent
+total estimated workload
+available time
+capacity ratio
+high-risk task count
+soonest due date
+risk flags
+recommended mode
 
-The Reviewer Agent now sends those outputs to a server-side Gemini call. Gemini audits the plan for realism, missing information, false reassurance, overload handling, and approval status.
+The tool’s recommended mode is not treated as the final answer. It is passed to the LLM as context.
 
-This hybrid architecture keeps the deterministic evaluation harness while adding a real model-powered agent step.
+LLM Role
 
-## Data Flow
+The LLM is responsible for the final strategy decision.
 
-1. User enters student context and assignments.
-2. The Task Parser Agent structures the assignment data.
-3. The Priority Agent scores and ranks tasks.
-4. The Feasibility Agent compares required work against available time.
-5. The Schedule Builder Agent creates a recommended plan.
-6. The Risk Agent flags potential problems.
-7. The Reviewer Agent audits the final plan.
-8. The user receives a recovery plan, risk warnings, and agent workflow trace.
+It chooses one of:
 
-## Agent Roles
+SCHEDULE_MODE
+RECOVERY_MODE
+TRIAGE_MODE
+WARNING_MODE
 
-### Task Parser Agent
+The model explains why it selected that strategy and creates a recovery plan for the student.
 
-Normalizes raw assignment input into structured tasks.
+Deterministic Baseline
 
-### Priority Agent
+The deterministic baseline uses a simple earliest-due-date rule. It prioritizes whichever task is due first.
 
-Scores tasks by urgency, grade weight, progress, and difficulty.
+This baseline is intentionally limited. It does not consider:
 
-### Feasibility Agent
+importance
+progress
+difficulty
+energy level
+stress level
+blockers
+dependency risk
 
-Compares required work against available hours and classifies the workload as manageable, tight, or overloaded.
+The LLM’s strategy is compared to this baseline so the autonomous decision is easier to evaluate.
 
-### Schedule Builder Agent
+Agentic Behavior
 
-Allocates available work time across today and tomorrow.
+RecoveryPilot demonstrates agentic behavior because the model is not only summarizing a hardcoded output. It receives structured tool output and makes a strategy decision based on the situation.
 
-### Risk Agent
+The agent decides whether the student needs:
 
-Flags risks such as overload, low energy, high stress, missing information, and deadline pressure.
+a normal schedule
+a recovery plan
+a triage plan
+an overload warning
+Production Quality Direction
 
-### Reviewer Agent
+The app is designed around a real student problem: academic overload. Instead of assuming every set of tasks can be scheduled, RecoveryPilot can recognize when the workload is unrealistic and recommend triage, scope reduction, or outreach.
 
-Audits the plan and decides whether it is approved or needs revision.
+Current Draft Notes
 
-## Current Implementation
-
-The final version uses a hybrid architecture. Deterministic logic handles structured parsing, priority scoring, feasibility calculation, schedule scaffolding, and risk detection. The Reviewer Agent is powered by a real Gemini API call and audits the deterministic output before final review.
-
-## Feasibility Logic
-
-The system calculates:
-
-required hours / available hours = workload ratio
-
-Classification:
-
-- 0.00–0.85: manageable
-- 0.86–1.15: tight
-- 1.16 or higher: overloaded
-
-## UX Sections
-
-The app includes:
-
-- Header
-- About the Agentic Workflow
-- Evaluation Demo
-- Student Context Form
-- Assignment Input Section
-- Run Recovery Plan button
-- Situation Summary
-- Priority Ranking
-- Recommended Recovery Plan
-- Risk Warnings
-- Missing Information
-- Reviewer Check
-- Agent Workflow Trace
-
-## Prototype Tech Stack
-
-- Lovable-generated React app
-- Deterministic JavaScript logic
-- GitHub repository
-- Markdown documentation
-- Lovable deployment
+The current draft successfully demonstrates the Project 3 architecture, but the final version should improve the user-facing polish. Some class/project evidence is currently visible in the main UI and should eventually be moved into a technical evidence section.
