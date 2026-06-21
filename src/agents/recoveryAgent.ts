@@ -1,18 +1,20 @@
 // RecoveryPilot LLM agent.
 // -------------------------------------------------------------
-// This server function:
-//   1. Receives the student context, tasks, deterministic baseline,
-//      and the output already produced by the custom MCP-style tool
-//      `analyze_student_load`.
-//   2. Defines the MCP-style tool schema in the prompt so the LLM
-//      can see how the tool produces its facts.
-//   3. Asks Gemini to AUTONOMOUSLY choose one strategy mode
-//      (SCHEDULE_MODE / RECOVERY_MODE / TRIAGE_MODE / WARNING_MODE)
-//      and explain its decision via the `submit_strategy_decision`
-//      function call.
-//   4. If GEMINI_API_KEY is missing or the call fails, returns a
-//      clearly-labeled fallback decision derived from the tool's
-//      recommendedMode. The UI must distinguish live vs fallback.
+// WHERE THE TOOL OUTPUT IS EXPOSED TO GEMINI:
+//   - The analyze_student_load tool definition (from mcpToolDefinitions.ts)
+//     and its already-computed structured output are both injected into the
+//     prompt below. Gemini sees the tool schema AND the executed facts.
+// WHERE THE MODEL CHOOSES THE FINAL STRATEGY MODE:
+//   - Gemini is required to call the submit_strategy_decision function with
+//     one of SCHEDULE_MODE / RECOVERY_MODE / TRIAGE_MODE / WARNING_MODE.
+// WHERE SCHEDULING GUARDRAILS ARE ENFORCED:
+//   - The system prompt forbids over-allocation.
+//   - After receiving the response, we sum planned hours and surface a
+//     warning if the LLM still over-schedules.
+//
+// Note on "MCP": this is a custom MCP-style tool schema (function-calling
+// shape) — not a connection to a full external MCP server. We document it
+// honestly as such throughout the UI and docs.
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -37,20 +39,23 @@ const Input = z.object({
 
 const SYSTEM_PROMPT = `You are RecoveryPilot, an academic recovery agent for overwhelmed college students.
 
-A custom MCP-style tool named "analyze_student_load" has ALREADY been called for you. Its structured output is included in the user message. You must use that output as ground-truth facts.
+A custom MCP-style tool named "analyze_student_load" has ALREADY been executed for you. Its structured output is included in the user message. Treat that output as ground-truth facts.
 
 You then autonomously choose ONE strategy mode:
-- SCHEDULE_MODE: the student has enough time; build a normal schedule.
-- RECOVERY_MODE: the student is somewhat behind; build a focused recovery plan that catches up the most important work.
-- TRIAGE_MODE: the student is overloaded; prioritize only the highest-impact work and defer or drop the rest.
-- WARNING_MODE: the workload is unrealistic; warn the student plainly and recommend scope reduction, extensions, or asking for help. Do NOT pretend a normal schedule will work.
+- SCHEDULE_MODE: enough time; build a normal schedule.
+- RECOVERY_MODE: somewhat behind; build a focused catch-up plan.
+- TRIAGE_MODE: overloaded; prioritize highest-impact work and defer/drop the rest.
+- WARNING_MODE: unrealistic workload; warn the student plainly and recommend scope reduction, extensions, or asking for help. Do NOT pretend a normal schedule will work.
 
 Hard rules:
-- Refuse false reassurance. If capacityRatio > 1.5, you may not promise the student can finish everything.
-- If risk flags include "likely unachievable" or "already past due", you must surface that explicitly.
-- You are not bound to the tool's recommendedMode — you may override it, but if you do, explain why.
-- Compare your decision to the deterministic baseline (earliest-due-date-first) in the baselineComparison field. Explain meaningfully where you agree or diverge.
-- Keep the recoveryPlan concrete and short (3–6 steps).
+- Refuse false reassurance. If capacityRatioRaw > 1.0 you may NOT promise the student can finish everything inside available time.
+- SCHEDULING GUARDRAIL: the sum of durationHours across recoveryPlan must be <= availableHours from the tool output. If some tasks don't fit, put them in "notScheduled" with a short reason instead of cramming them.
+- In RECOVERY_MODE / TRIAGE_MODE / WARNING_MODE it is acceptable to recommend partial completion, scope reduction, or contacting the instructor.
+- Surface risk flags ("likely unachievable", "already past due", blocker notes, low energy, high stress) explicitly in riskWarnings.
+- You may override the tool's recommendedMode but explain why.
+- baselineComparison must meaningfully explain agreement or divergence from the earliest-due-date baseline.
+- DATE WORDING: do not mention UTC, timezone offsets, or ISO strings. Use the human-friendly soonestDueLabel from the tool output when referring to due dates.
+- Keep recoveryPlan concrete and short (3–6 steps).
 
 Respond ONLY by calling the submit_strategy_decision function.`;
 
@@ -62,7 +67,7 @@ function fallbackDecision(
   return {
     strategyMode: mode,
     reasoning:
-      `Fallback mode (no live LLM). Using the deterministic MCP tool's recommendedMode based on a capacity ratio of ${toolOutput.capacityRatio}. ` +
+      `Fallback mode (no live LLM). Using the deterministic MCP tool's recommendedMode based on a raw capacity ratio of ${toolOutput.capacityRatioRaw}. ` +
       `${toolOutput.highRiskTaskCount} high-risk task(s) detected.`,
     recoveryPlan: [
       {
@@ -71,9 +76,7 @@ function fallbackDecision(
       },
       { step: "Take a 10-minute reset, then reassess remaining time before continuing." },
       mode === "WARNING_MODE" || mode === "TRIAGE_MODE"
-        ? {
-            step: "Email instructor(s) of the most at-risk task to request an extension or partial-credit option.",
-          }
+        ? { step: "Email instructor(s) of the most at-risk task to request an extension or partial-credit option." }
         : { step: "Continue with the next-highest-impact task." },
     ],
     riskWarnings: toolOutput.riskFlags.length
@@ -83,7 +86,7 @@ function fallbackDecision(
       ? `Open "${baseline.topTask}" and work for one focused block, but reassess after 45 minutes.`
       : "Pick the single most important task and start a focused 45-minute block.",
     baselineComparison: baseline.topTask
-      ? `Baseline (earliest due) would start with "${baseline.topTask}". Fallback agent recommends ${mode} based on capacity ratio ${toolOutput.capacityRatio}, which considers more than due date alone.`
+      ? `Baseline (earliest due) would start with "${baseline.topTask}". Fallback agent recommends ${mode} based on raw capacity ratio ${toolOutput.capacityRatioRaw}, which considers more than due date alone.`
       : `Baseline could not pick a task (no usable due dates). Fallback agent recommends ${mode}.`,
   };
 }
@@ -110,7 +113,7 @@ export const runRecoveryAgent = createServerFn({ method: "POST" })
       `CUSTOM MCP-STYLE TOOL DEFINITION (exposed to you):\n${JSON.stringify(analyzeStudentLoadTool, null, 2)}\n\n` +
       `CUSTOM MCP-STYLE TOOL OUTPUT (already executed for you):\n${JSON.stringify(toolOutput, null, 2)}\n\n` +
       `DETERMINISTIC BASELINE (earliest-due-date-first):\n${JSON.stringify(baseline, null, 2)}\n\n` +
-      `Choose ONE strategy mode autonomously. Call submit_strategy_decision with your reasoning, recovery plan, risk warnings, first action, and a meaningful comparison to the baseline.`;
+      `Choose ONE strategy mode autonomously. Call submit_strategy_decision with reasoning, recoveryPlan (sum of durationHours <= ${toolOutput.availableHours}), any notScheduled work, riskWarnings, firstAction, and a meaningful baselineComparison. Use soonestDueLabel for due-date wording — do not mention UTC.`;
 
     try {
       const resp = await fetch(
@@ -157,10 +160,7 @@ export const runRecoveryAgent = createServerFn({ method: "POST" })
 
       const a = fn.args as Partial<StrategyDecision>;
       const validModes: StrategyMode[] = [
-        "SCHEDULE_MODE",
-        "RECOVERY_MODE",
-        "TRIAGE_MODE",
-        "WARNING_MODE",
+        "SCHEDULE_MODE", "RECOVERY_MODE", "TRIAGE_MODE", "WARNING_MODE",
       ];
       if (!a.strategyMode || !validModes.includes(a.strategyMode)) {
         return {
@@ -183,6 +183,12 @@ export const runRecoveryAgent = createServerFn({ method: "POST" })
                 task: p?.task ? String(p.task) : undefined,
                 durationHours:
                   typeof p?.durationHours === "number" ? p.durationHours : undefined,
+              }))
+            : [],
+          notScheduled: Array.isArray((a as any).notScheduled)
+            ? (a as any).notScheduled.map((n: any) => ({
+                task: String(n?.task ?? ""),
+                reason: String(n?.reason ?? ""),
               }))
             : [],
           riskWarnings: Array.isArray(a.riskWarnings) ? a.riskWarnings.map(String) : [],
