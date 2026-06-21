@@ -131,7 +131,7 @@ export function analyzeStudentLoad(input: {
     }
     if (t.importance === "high" && t.progress < 30) {
       reasons.push("High-importance task under 30% complete.");
-      if (urgency === "low" || urgency === "medium") urgency = "high";
+      if (urgency !== "critical") urgency = "high";
     }
     if (t.difficulty === "hard" && t.progress < 30) {
       reasons.push("Hard task under 30% complete.");
