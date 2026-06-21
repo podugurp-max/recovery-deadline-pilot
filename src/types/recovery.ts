@@ -1,6 +1,4 @@
 // RecoveryPilot — shared types for the MCP-style tool + LLM strategy agent.
-// Project 3 capstone: the custom MCP tool analyze_student_load computes
-// structured workload facts, and an LLM agent then chooses a strategy mode.
 
 export type Energy = "low" | "medium" | "high";
 export type Importance = "low" | "medium" | "high";
@@ -13,7 +11,7 @@ export type StrategyMode =
   | "WARNING_MODE";
 
 export interface StudentContext {
-  currentDate: string; // ISO date or datetime
+  currentDate: string;
   hoursToday: number;
   hoursTomorrow: number;
   energy: Energy;
@@ -25,32 +23,42 @@ export interface Task {
   id: string;
   name: string;
   course: string;
-  dueAt: string; // ISO datetime ("" if missing)
-  hoursRemaining: number; // raw estimate
-  progress: number; // 0-100
+  dueAt: string;
+  hoursRemaining: number;
+  progress: number;
   importance: Importance;
   difficulty: Difficulty;
   notes: string;
 }
 
+export interface TaskRisk {
+  taskName: string;
+  urgencyLevel: "low" | "medium" | "high" | "critical";
+  reasons: string[];
+}
+
 // Structured output produced by the custom MCP-style tool.
 export interface AnalyzeStudentLoadOutput {
   toolName: "analyze_student_load";
-  totalRawHours: number;
+  totalRawHours: number;          // exact sum of user-estimated hours remaining
+  adjustedWorkHours: number;      // raw hours scaled for difficulty/progress/energy/stress
   availableHours: number;
-  capacityRatio: number; // totalRawHours / availableHours
+  capacityRatioRaw: number;       // totalRawHours / availableHours
+  capacityRatioAdjusted: number;  // adjustedWorkHours / availableHours
   highRiskTaskCount: number;
   soonestDueDate: string | null;
+  soonestDueLabel: string | null; // human-friendly, local-time formatted
   riskFlags: string[];
+  taskRisks: TaskRisk[];
   recommendedMode: StrategyMode;
   explanation: string;
 }
 
-// Structured output the LLM is asked to return via the submit_strategy_decision tool call.
 export interface StrategyDecision {
   strategyMode: StrategyMode;
   reasoning: string;
   recoveryPlan: { step: string; task?: string; durationHours?: number }[];
+  notScheduled?: { task: string; reason: string }[];
   riskWarnings: string[];
   firstAction: string;
   baselineComparison: string;
